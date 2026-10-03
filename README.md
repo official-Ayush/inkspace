@@ -6,7 +6,7 @@ The app now runs on **Vercel with Supabase Auth, Postgres, and private Storage**
 
 ## Set up and deploy
 
-Follow [the Vercel deployment guide](docs/VERCEL-DEPLOYMENT.md) to create the database, configure approved users and email codes, enable Turnstile, and add environment variables to Vercel. Complete these provider settings before using the deployed app.
+Follow [the Vercel deployment guide](docs/VERCEL-DEPLOYMENT.md) to create the database, configure approved users and passwords, enable Turnstile, and add environment variables to Vercel. Login does not require SMTP or a custom domain. Complete these provider settings before using the deployed app.
 
 For local development, install Node.js 22.13.0 or newer, then run:
 
@@ -30,7 +30,7 @@ npm run build
 npm start
 ```
 
-`check:config` checks environment variable formats without printing credentials. It does not verify hosted database, email delivery, CAPTCHA, or Vercel settings. Tests include local database isolation checks; complete the live checks in the deployment guide with your own provider configuration.
+`check:config` checks environment variable formats without printing credentials. It does not verify hosted database, authentication, CAPTCHA, or Vercel settings. Tests include local database isolation checks; complete the live checks in the deployment guide with your own provider configuration.
 
 ## Data and limits
 
@@ -46,7 +46,7 @@ Existing drawings in the old Cloudflare D1/R2 app or `.wrangler/state` are **not
 | --- | --- |
 | `components/workspace.tsx` | Navigation, autosave, rename/delete, templates and exports |
 | `components/drawing-editor.tsx` | Excalidraw canvas integration |
-| `components/login-form.tsx` | Email-code login and CAPTCHA |
+| `components/login-form.tsx` | Email-and-password login and CAPTCHA |
 | `lib/auth/` | Approved-user checks and login validation |
 | `lib/board-client.ts` | Direct private snapshot uploads/downloads |
 | `lib/board-store.ts` | Board validation and storage helpers |

@@ -70,16 +70,17 @@ export function assertApprovedUser(user: { email?: string; email_confirmed_at?: 
   }
 }
 
-export function parseOtp(value: unknown): string {
-  if (typeof value !== "string" || !/^\d{6,10}$/.test(value.trim())) {
-    throw new HttpError(400, "Enter the 6–10 digit code from your email.");
+export function parsePassword(value: unknown): string {
+  if (typeof value !== "string" || value.length === 0 || value.length > 1024) {
+    throw new HttpError(400, "Enter your password (up to 1024 characters).");
   }
-  return value.trim();
+  // Existing passwords must be passed verbatim, including spaces.
+  return value;
 }
 
 export function parseCaptchaToken(value: unknown, required: boolean): string | undefined {
   if (value === undefined || value === "") {
-    if (required) throw new HttpError(400, "Complete the security check before requesting a code.");
+    if (required) throw new HttpError(400, "Complete the security check before signing in.");
     return undefined;
   }
   if (typeof value !== "string" || value.length > 2048 || !value.trim()) {

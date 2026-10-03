@@ -1,4 +1,4 @@
-import { requestSignInCode } from "@/lib/auth/flows";
+import { signInWithPassword } from "@/lib/auth/flows";
 import { assertSameOrigin, failure, jsonNoStore, readJson } from "@/lib/http";
 import { getAuthConfiguration } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -12,6 +12,6 @@ export async function POST(request: Request) {
     const config = getAuthConfiguration();
     const body = await readJson(request);
     const supabase = await createSupabaseServerClient();
-    return jsonNoStore(await requestSignInCode(supabase, config, body));
+    return jsonNoStore(await signInWithPassword(supabase, config, body));
   } catch (error) { return failure(error); }
 }

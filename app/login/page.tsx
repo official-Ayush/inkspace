@@ -31,7 +31,7 @@ export default async function LoginPage() {
         <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">{setupMessage}</p>
         <p>Owner: follow the deployment guide in the project, add the required environment variables, and redeploy.</p>
       </div> : <>
-        <p className="mb-7 text-sm leading-6 text-slate-500">Sign in with your approved email address. We’ll send you a one-time code.</p>
+        <p className="mb-7 text-sm leading-6 text-slate-500">Sign in with your approved email address and password.</p>
         <LoginForm turnstileSiteKey={turnstileSiteKey} nonce={nonce} />
         <p className="mt-7 border-t border-slate-100 pt-5 text-xs leading-5 text-slate-500">Access is by invitation. Your boards are private to your account.</p>
       </>}

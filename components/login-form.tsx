@@ -30,16 +30,12 @@ async function postAuth(path: string, body: Record<string, string>) {
 
 export default function LoginForm({ turnstileSiteKey, nonce }: { turnstileSiteKey: string; nonce?: string }) {
   const [email, setEmail] = useState("");
-  const [token, setToken] = useState("");
+  const [password, setPassword] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
-  const [step, setStep] = useState<"email" | "code">("email");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [cooldown, setCooldown] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const renderCaptcha = useCallback(() => {
     if (!turnstileSiteKey || !window.turnstile || !containerRef.current || widgetRef.current !== null) return;
@@ -51,46 +47,29 @@ export default function LoginForm({ turnstileSiteKey, nonce }: { turnstileSiteKe
   }, [turnstileSiteKey]);
 
   useEffect(() => {
-    if (step !== "email") return;
     renderCaptcha();
     return () => {
       if (widgetRef.current !== null) window.turnstile?.remove(widgetRef.current);
       widgetRef.current = null;
     };
-  }, [renderCaptcha, step]);
-
-  useEffect(() => {
-    if (!cooldown) return;
-    const timer = window.setTimeout(() => setCooldown(value => Math.max(0, value - 1)), 1000);
-    return () => window.clearTimeout(timer);
-  }, [cooldown]);
-
-  useEffect(() => { if (step === "code") inputRef.current?.focus(); }, [step]);
+  }, [renderCaptcha]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
     setBusy(true); setError("");
     try {
-      if (step === "email") {
-        const data = await postAuth("/api/auth/login", { email, captchaToken });
-        setEmail(email.trim().toLowerCase());
-        setMessage(data.message ?? "Check your email for a sign-in code.");
-        setStep("code"); setCooldown(60);
-      } else {
-        await postAuth("/api/auth/verify", { email, token });
-        // A full navigation uses the new HttpOnly cookies and clears stale UI.
-        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-        window.location.assign("/");
-      }
+      await postAuth("/api/auth/login", { email, password, captchaToken });
+      // A full navigation uses the new HttpOnly cookies and clears stale UI.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign("/");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Please try again shortly.");
     } finally {
       setBusy(false);
-      if (step === "email") {
-        setCaptchaToken("");
-        if (widgetRef.current !== null) window.turnstile?.reset(widgetRef.current);
-      }
+      setPassword("");
+      setCaptchaToken("");
+      if (widgetRef.current !== null) window.turnstile?.reset(widgetRef.current);
     }
   }
 
@@ -98,20 +77,15 @@ export default function LoginForm({ turnstileSiteKey, nonce }: { turnstileSiteKe
   return <>
     {turnstileSiteKey && <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" nonce={nonce} strategy="afterInteractive" onReady={renderCaptcha} onError={() => setError("The security check could not load. Refresh the page and try again.")} />}
     <form onSubmit={submit} className="space-y-5">
-      {step === "email" ? <>
         <div><label className="text-sm font-medium" htmlFor="login-email">Email address</label><input id="login-email" type="email" autoComplete="email" required maxLength={254} placeholder="you@example.com" value={email} onChange={event => setEmail(event.target.value)} disabled={busy} className={inputClass} /></div>
+        <div><label className="text-sm font-medium" htmlFor="login-password">Password</label><input id="login-password" type="password" autoComplete="current-password" required maxLength={1024} value={password} onChange={event => setPassword(event.target.value)} disabled={busy} className={inputClass} /></div>
         {turnstileSiteKey && <div ref={containerRef} aria-label="Security check" className="min-h-16" />}
-      </> : <>
-        <p className="break-words text-sm text-slate-600">Code sent to <strong>{email}</strong></p>
-        <div><label className="text-sm font-medium" htmlFor="login-code">Email code</label><input ref={inputRef} id="login-code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,10}" minLength={6} maxLength={10} required value={token} onChange={event => setToken(event.target.value.replace(/\D/g, ""))} disabled={busy} className={`${inputClass} tracking-[.35em]`} /></div>
-      </>}
-      {message && <p role="status" className="text-sm leading-5 text-slate-600">{message}</p>}
       {error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2.5 text-sm leading-5 text-red-700">{error}</p>}
-      <button type="submit" disabled={busy || (step === "email" && (!!turnstileSiteKey && !captchaToken || cooldown > 0))} className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-700 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50">
+      <button type="submit" disabled={busy || (!!turnstileSiteKey && !captchaToken)} className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-700 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50">
         {busy ? <Loader2 size={17} className="animate-spin" /> : <ArrowRight size={17} />}
-        {busy ? "Please wait…" : step === "code" ? "Open my workspace" : cooldown > 0 ? `Wait ${cooldown}s to resend` : "Send sign-in code"}
+        {busy ? "Please wait…" : "Sign in"}
       </button>
-      {step === "code" && <button type="button" disabled={busy} onClick={() => { setStep("email"); setToken(""); setCaptchaToken(""); setError(""); setMessage(""); }} className="w-full text-sm text-violet-700 underline underline-offset-4">Use another email or request a new code</button>}
+      <p className="text-xs leading-5 text-slate-500">Forgot your password? Contact the workspace owner to reset it.</p>
     </form>
   </>;
 }

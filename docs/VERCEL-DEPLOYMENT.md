@@ -1,6 +1,6 @@
 # Deploy Inkspace to Vercel
 
-This version uses Vercel for Next.js and Supabase for authentication, board metadata, and private drawing files. Complete the configuration below before using it. Local tests and a successful build cannot verify hosted email delivery, storage policies, CAPTCHA credentials, or deployment settings.
+This version uses Vercel for Next.js and Supabase for authentication, board metadata, and private drawing files. Complete the configuration below before using it. Local tests and a successful build cannot verify hosted authentication, storage policies, CAPTCHA credentials, or deployment settings.
 
 ## 1. Create a dedicated Supabase project
 
@@ -10,25 +10,18 @@ In its SQL editor, run the complete contents of `supabase/migrations/20261003000
 
 Confirm that `inkspace-scenes` is private and row-level security is enabled on `public.boards` and `public.board_uploads`. The application never requires a Supabase secret or service-role key.
 
-## 2. Configure approved users and email codes
+## 2. Configure approved users and passwords
 
 In Supabase Authentication:
 
 1. Enable the email provider and disable new user signups. Leave anonymous sign-ins and unused providers disabled.
-2. Create each approved user manually in the Users dashboard with their real email address, and ensure their email is confirmed. If creation requires a password, use a generated password; this app signs users in with email codes.
+2. Create each approved user manually in the Users dashboard with their real email address and a strong, unique password. Enable Auto Confirm User for these manually approved accounts. Keep the password in a password manager; it is the password used to sign in to Inkspace, separate from the Supabase dashboard and database passwords.
 3. Set the Site URL to your production HTTPS address when known.
-4. Edit the **Magic Link** email template to send a numeric code. A minimal body is:
+4. List those same approved emails in `INKSPACE_ALLOWED_EMAILS`, separated by commas. Keep Supabase's authentication rate limits enabled.
 
-```html
-<h2>Your Inkspace sign-in code</h2>
-<p>Enter this code in Inkspace:</p>
-<p><strong>{{ .Token }}</strong></p>
-<p>If you did not request this code, ignore this email.</p>
-```
+The app uses [Supabase email-and-password sign-in](https://supabase.com/docs/guides/auth/passwords). It does not create accounts, send login emails, or accept email codes. You can skip Magic Link templates and custom SMTP for this login flow; a custom domain is not required. Existing manually created, confirmed users can keep their current passwords.
 
-The form expects a code entered in the same browser. A template containing only a sign-in link will not match this flow. See [Supabase passwordless email sign-in](https://supabase.com/docs/guides/auth/auth-email-passwordless).
-
-Configure a production SMTP provider and verified sender in Supabase, then test delivery to approved addresses. Keep Supabase's authentication rate limits enabled. List the same approved emails in `INKSPACE_ALLOWED_EMAILS`, separated by commas. The app requests codes with account creation disabled and checks the verified user's email again before granting access.
+Password recovery is handled by the workspace owner through Supabase's administrative account-management tools. The app has no self-service email reset flow. Do not delete a user to reset a password: deleting the user also deletes their board metadata. If you later add email-based recovery, configure production email delivery first. Never put user passwords or an admin/service-role key in the app's environment files or repository.
 
 To revoke access, remove the email from the app allowlist and redeploy, then revoke the user's sessions or disable the account in Supabase.
 
@@ -86,7 +79,7 @@ Old Cloudflare D1/R2 bindings, Wrangler commands, and Sites configuration are no
 Use non-sensitive sample drawings:
 
 1. An unsigned-in browser should reach login and be unable to list or download boards.
-2. Sign in with an approved, pre-created email and its delivered code after completing CAPTCHA. An unapproved address should not gain access.
+2. Sign in with an approved, pre-created email and its password after completing CAPTCHA. Wrong passwords, unconfirmed accounts, and unapproved addresses should not gain access.
 3. Create, draw, reload, rename, favorite, export, import, and delete a sample board. Confirm saving succeeds and the drawing survives a fresh sign-in.
 4. Use a second approved account in another browser profile. It should see its own workspace and should be unable to open the first user's board URL/API record.
 5. Test a drawing larger than 4.5 MB but below 15 MB to confirm direct Storage transfers work with your provider setup.
@@ -125,7 +118,7 @@ Open the previous app and use **Export → Editable** for each drawing. Sign int
 | Symptom | Check |
 | --- | --- |
 | Workspace locked or service unavailable | All variables exist in the deployment's environment; redeploy after changes. |
-| No email code | User exists and is confirmed, address is allowlisted, SMTP works, and Magic Link template contains `{{ .Token }}`. |
+| Sign-in rejected | User exists and is confirmed, address is allowlisted, password is correct, and CAPTCHA is configured. Use the app user's password, not the database or dashboard password. |
 | CAPTCHA fails | Hostname is permitted and Supabase's secret matches the app's site key. |
 | Board save fails immediately | Migration completed in the same project as the configured URL/key; bucket is private and named `inkspace-scenes`. |
 | Storage limit after deletion | Deleted/old snapshots count during the 135-minute retention window; later activity triggers cleanup. |

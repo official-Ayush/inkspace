@@ -23,5 +23,5 @@ if (problems.length) {
   process.exitCode = 1;
 } else {
   console.log('Environment variable formats look valid. No credentials were printed.');
-  console.log('Still verify the SQL migration, private bucket, disabled signups, email template, SMTP and CAPTCHA configuration in Supabase.');
+  console.log('Still verify the SQL migration, private bucket, disabled signups, confirmed password accounts and CAPTCHA configuration in Supabase.');
 }
