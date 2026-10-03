@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Plus, Search, LayoutTemplate, Upload, PanelLeft, Star, Ellipsis, Download, Copy, Trash2, Presentation, CloudCheck, CloudUpload, CloudOff, Loader2, Sun, Moon, Keyboard, LockKeyhole, Pencil, StickyNote, Maximize, Grid2X2, PencilRuler, ShieldCheck, ChevronDown } from 'lucide-react';
+import { Plus, Search, LayoutTemplate, Upload, PanelLeft, Star, Ellipsis, Download, Copy, Trash2, Presentation, CloudCheck, CloudUpload, CloudOff, Loader2, Sun, Moon, Keyboard, LockKeyhole, Pencil, StickyNote, Maximize, Grid2X2, PencilRuler, ShieldCheck, ChevronDown, LogOut } from 'lucide-react';
 import { Sidebar, SidebarProvider, useSidebar } from '@/components/ui/sidebar';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -13,15 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Toaster, toast } from 'sonner';
 import { templates, type TemplateId } from '@/lib/templates';
+import { request } from '@/lib/board-client';
 import type { EditorHandle, Scene } from './drawing-editor';
 const DrawingEditor = dynamic(() => import('./drawing-editor'), { ssr: false, loading: () => <div className="loading-state"><Loader2 className="spin" /><span>Opening your canvas…</span></div> });
 type Board = { id: string; title: string; favorite: number; color: string; revision: number; updatedAt: string; createdAt: string };
-async function request(url: string, options: RequestInit = {}): Promise<any> {
-  const response = await fetch(url, { ...options, headers: { 'Content-Type': 'application/json', ...options.headers } });
-  const data: any = await response.json();
-  if (!response.ok) throw new Error(data.error ?? 'Something went wrong. Please try again.');
-  return data;
-}
 async function drawingModule() {
   (window as any).EXCALIDRAW_ASSET_PATH = '/excalidraw/';
   await document.fonts.load('20px Excalifont', 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789…');
@@ -41,7 +36,7 @@ function TemplatePreview({ id }: { id: TemplateId }) {
 function SidebarToggle() { const { toggleSidebar } = useSidebar(); return <button className="icon-btn mobile-trigger" aria-label="Open boards" onClick={toggleSidebar}><PanelLeft /></button>; }
 function CloseSidebarOnSelect({ onSelect, children, ...props }: any) { const { setOpenMobile } = useSidebar(); return <button {...props} onClick={() => { setOpenMobile(false); onSelect(); }}>{children}</button>; }
 
-export default function Workspace() {
+export default function Workspace({ userEmail }: { userEmail: string }) {
   const [boards, setBoards] = useState<Board[]>([]);
   const [active, setActive] = useState<Board | null>(null);
   const [initial, setInitial] = useState<Scene | null>(null);
@@ -183,6 +178,16 @@ export default function Workspace() {
     } catch (e: any) { toast.error(e.message || 'Export failed. Try a smaller scale.'); } finally { setExporting(false); }
   };
   const showExport = () => { setSelection(editor.current?.selectionCount() ?? 0); setOnlySelected(false); setExportOpen(true); };
+  const signOut = async () => {
+    if (busy) return; setBusy(true);
+    try {
+      if (!await flush()) { toast.error('Export a backup or save your changes before signing out.'); return; }
+      const response = await fetch('/api/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      if (!response.ok) throw new Error('Could not sign out. Please try again.');
+      window.location.assign('/login');
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not sign out.'); }
+    finally { setBusy(false); }
+  };
   actions.current = { createBoard, openBoard, flush, getBoards: () => boards, getActive: () => activeRef.current, getScene: () => editor.current?.snapshot() ?? latest.current };
   useEffect(() => {
     const context = (document as any).modelContext; if (!context?.registerTool) return;
@@ -208,7 +213,7 @@ export default function Workspace() {
         </CloseSidebarOnSelect><DropdownMenu><DropdownMenuTrigger asChild><button className="icon-btn board-row-options" aria-label={`Options for ${b.title}`} disabled={busy}><Ellipsis /></button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuItem onSelect={() => showRename(b)}><Pencil /> Rename board</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem variant="destructive" onSelect={() => setDeleteTarget(b)}><Trash2 /> Delete board</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>)}{!filtered.length && <p className="no-boards">{search ? 'No boards match your search.' : tab === 'starred' ? 'Star a board to keep it close.' : 'Your boards will appear here.'}</p>}</div>
         <div className="side-utilities"><button className="side-link" onClick={() => setTemplateOpen(true)}><LayoutTemplate /> Templates <span className="ml-auto text-xs text-muted-foreground">6</span></button><button className="side-link" disabled={!active || busy} onClick={() => importInput.current?.click()}><Upload /> Import a drawing</button></div>
       </Tabs>
-      <div className="sidebar-footer"><div className="avatar">Y</div><div className="footer-user"><strong>Your workspace</strong><small>Private by default</small></div><Hint label={dark ? 'Switch to light mode' : 'Switch to dark mode'}><button className="icon-btn" aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} onClick={() => setDark(!dark)}>{dark ? <Sun /> : <Moon />}</button></Hint></div>
+      <div className="sidebar-footer"><div className="avatar">{userEmail.charAt(0).toUpperCase()}</div><div className="footer-user" style={{ minWidth: 0 }}><strong>Your workspace</strong><small title={userEmail} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userEmail}</small></div><Hint label={dark ? 'Switch to light mode' : 'Switch to dark mode'}><button className="icon-btn" aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} onClick={() => setDark(!dark)}>{dark ? <Sun /> : <Moon />}</button></Hint><Hint label="Sign out"><button className="icon-btn" aria-label="Sign out" disabled={busy} onClick={() => void signOut()}><LogOut /></button></Hint></div>
     </div></Sidebar>
     <main className="editor-main">
       <header className="board-header"><div className="header-start"><SidebarToggle /><div className="header-board-icon"><PencilRuler size={18} /></div><div className="board-titles"><input className="board-title-input" aria-label="Board name" maxLength={120} value={titleDraft} onChange={e => setTitleDraft(e.target.value)} onBlur={rename} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} placeholder="Your canvas" disabled={!active} />
